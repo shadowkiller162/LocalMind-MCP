@@ -1,0 +1,20 @@
+# 引用核心依賴
+-r base.txt
+
+# WSGI 伺服器
+gunicorn==23.0.0 ; python_version == "3.11"  # https://github.com/benoitc/gunicorn
+
+# 資料庫 (生產環境優化)
+psycopg[c]==3.2.9 ; python_version == "3.11"  # https://github.com/psycopg/psycopg
+
+# 靜態檔案處理
+whitenoise==6.9.0 ; python_version == "3.11"  # https://github.com/evansd/whitenoise
+
+# 密碼雜湊 (生產環境增強安全)
+argon2-cffi==23.1.0 ; python_version == "3.11"  # https://github.com/hynek/argon2_cffi
+
+# 雲端存儲服務
+django-storages[s3]==1.14.6 ; python_version == "3.11"  # https://github.com/jschneier/django-storages
+
+# 郵件服務
+django-anymail==13.0 ; python_version == "3.11"  # https://github.com/anymail/django-anymail

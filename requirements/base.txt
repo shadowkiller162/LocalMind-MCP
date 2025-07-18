@@ -1,0 +1,86 @@
+# Django 核心框架
+django==4.2.23 ; python_version == "3.11"
+asgiref==3.9.1 ; python_version == "3.11"
+sqlparse==0.5.3 ; python_version == "3.11"
+tzdata==2025.2 ; python_version == "3.11"
+
+# Django REST Framework
+djangorestframework==3.16.0 ; python_version == "3.11"
+djangorestframework-simplejwt==5.5.0 ; python_version == "3.11"
+pyjwt==2.9.0 ; python_version == "3.11"
+
+# API 文檔
+drf-spectacular==0.27.2 ; python_version == "3.11"
+uritemplate==4.2.0 ; python_version == "3.11"
+inflection==0.5.1 ; python_version == "3.11"
+
+# 認證與授權
+django-allauth==0.59.0 ; python_version == "3.11"
+oauthlib==3.3.1 ; python_version == "3.11"
+requests-oauthlib==2.0.0 ; python_version == "3.11"
+python3-openid==3.2.0 ; python_version == "3.11"
+defusedxml==0.7.1 ; python_version == "3.11"
+
+# 資料庫
+psycopg2-binary==2.9.10 ; python_version == "3.11"
+
+# 異步任務處理 (Celery)
+celery==5.5.3 ; python_version == "3.11"
+billiard==4.2.1 ; python_version == "3.11"
+kombu==5.5.4 ; python_version == "3.11"
+vine==5.1.0 ; python_version == "3.11"
+amqp==5.3.1 ; python_version == "3.11"
+
+# Redis 客戶端
+redis==5.3.0 ; python_version == "3.11"
+
+# Celery 排程
+django-celery-beat==2.8.1 ; python_version == "3.11"
+django-timezone-field==7.1 ; python_version == "3.11"
+cron-descriptor==1.4.5 ; python_version == "3.11"
+python-crontab==3.2.0 ; python_version == "3.11"
+
+# 環境配置
+django-environ==0.11.2 ; python_version == "3.11"
+
+# 基本工具
+requests==2.32.4 ; python_version == "3.11"
+urllib3==2.5.0 ; python_version == "3.11"
+certifi==2025.7.9 ; python_version == "3.11"
+charset-normalizer==3.4.2 ; python_version == "3.11"
+idna==3.10 ; python_version == "3.11"
+packaging==25.0 ; python_version == "3.11"
+six==1.17.0 ; python_version == "3.11"
+typing-extensions==4.14.1 ; python_version == "3.11"
+python-dateutil==2.9.0.post0 ; python_version == "3.11"
+
+# 安全性
+cryptography==45.0.5 ; python_version == "3.11"
+cffi==1.17.1 ; python_version == "3.11" and platform_python_implementation != "PyPy"
+pycparser==2.22 ; python_version == "3.11" and platform_python_implementation != "PyPy"
+
+# JSON Schema
+jsonschema==4.24.0 ; python_version == "3.11"
+jsonschema-specifications==2025.4.1 ; python_version == "3.11"
+referencing==0.36.2 ; python_version == "3.11"
+rpds-py==0.26.0 ; python_version == "3.11"
+attrs==25.3.0 ; python_version == "3.11"
+
+# YAML 支持
+pyyaml==6.0.2 ; python_version == "3.11"
+
+# Click 命令行工具
+click==8.2.1 ; python_version == "3.11"
+click-didyoumean==0.3.1 ; python_version == "3.11"
+click-plugins==1.1.1.2 ; python_version == "3.11"
+click-repl==0.3.0 ; python_version == "3.11"
+prompt-toolkit==3.0.51 ; python_version == "3.11"
+wcwidth==0.2.13 ; python_version == "3.11"
+
+# 異步支持
+async-timeout==5.0.1 ; python_version == "3.11" and python_full_version < "3.11.3"
+
+# AI Services (核心業務功能)
+openai>=1.0.0 ; python_version == "3.11"
+anthropic>=0.25.0 ; python_version == "3.11"
+google-generativeai>=0.8.0 ; python_version == "3.11"

@@ -1,0 +1,16 @@
+services:
+  docs:
+    image: genai_reply_backend_local_docs
+    container_name: genai_reply_backend_local_docs
+    build:
+      context: .
+      dockerfile: ./compose/local/docs/Dockerfile
+    env_file:
+      - ./.envs/.local/.django
+    volumes:
+      - ./docs:/docs:z
+      - ./config:/app/config:z
+      - ./genai_reply_backend:/app/genai_reply_backend:z
+    ports:
+      - '9000:9000'
+    command: /start-docs
