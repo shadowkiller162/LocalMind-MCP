@@ -1,0 +1,127 @@
+<!-- MCP 狀態監控組件 -->
+<div class="card border-{% if mcp_status.is_connected %}success{% else %}danger{% endif %} mb-3" 
+     id="mcp-status-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="card-title mb-0">
+      <i class="fas fa-server me-2"></i>
+      MCP 服務狀態
+    </h6>
+    <div class="status-indicator">
+      {% if mcp_status.is_connected %}
+        <span class="badge bg-success">
+          <i class="fas fa-circle me-1"></i>連線中
+        </span>
+      {% else %}
+        <span class="badge bg-danger">
+          <i class="fas fa-exclamation-circle me-1"></i>離線
+        </span>
+      {% endif %}
+    </div>
+  </div>
+  
+  <div class="card-body">
+    {% if mcp_status.is_connected %}
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">服務:</span>
+            <strong>{{ mcp_status.service_name|default:"Unknown" }}</strong>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">當前模型:</span>
+            <strong>{{ mcp_status.model_name|default:"N/A" }}</strong>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">可用模型:</span>
+            <span class="badge bg-primary">{{ mcp_status.total_models|default:0 }} 個</span>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">回應時間:</span>
+            <span class="badge bg-secondary">{{ mcp_status.response_time|default:"N/A" }}</span>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">連線數:</span>
+            <span class="badge bg-info">
+              {{ mcp_status.active_connections|default:0 }}/{{ mcp_status.max_connections|default:10 }}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 可用模型列表 -->
+      {% if mcp_status.available_models and mcp_status.available_models|length > 1 %}
+        <div class="mt-3 pt-3 border-top">
+          <h6 class="text-muted mb-2">
+            <i class="fas fa-list me-1"></i>
+            可用模型列表:
+          </h6>
+          <div class="d-flex flex-wrap gap-1">
+            {% for model in mcp_status.available_models %}
+              <span class="badge {% if model == mcp_status.model_name %}bg-success{% else %}bg-secondary{% endif %} me-1 mb-1">
+                {% if model == mcp_status.model_name %}
+                  <i class="fas fa-check me-1"></i>
+                {% endif %}
+                {{ model }}
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+      
+      {% if mcp_status.last_ping %}
+        <div class="mt-3 pt-3 border-top">
+          <small class="text-muted">
+            <i class="fas fa-clock me-1"></i>
+            最後檢測: {{ mcp_status.last_ping }}
+            {% if mcp_status.lmstudio_status %}
+              | 狀態: 
+              <span class="badge {% if mcp_status.lmstudio_status == 'connected' %}bg-success{% elif mcp_status.lmstudio_status == 'timeout' %}bg-warning{% else %}bg-danger{% endif %}">
+                {{ mcp_status.lmstudio_status }}
+              </span>
+            {% endif %}
+          </small>
+        </div>
+      {% endif %}
+      
+      {% if mcp_status.reconnected %}
+        <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+          <i class="fas fa-check-circle me-2"></i>
+          MCP 服務重新連接成功！
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endif %}
+      
+    {% else %}
+      <!-- 離線狀態 -->
+      <div class="text-center py-3">
+        <i class="fas fa-exclamation-triangle text-warning fa-2x mb-3"></i>
+        <h6 class="text-muted">MCP 服務未連接</h6>
+        
+        {% if mcp_status.error_message %}
+          <div class="alert alert-danger mt-3" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            {{ mcp_status.error_message }}
+          </div>
+        {% endif %}
+        
+        <button class="btn btn-primary btn-sm mt-3" 
+                hx-post="{% url 'mcp_management:reconnect' %}"
+                hx-target="#mcp-status-card"
+                hx-swap="outerHTML"
+                hx-indicator="#reconnect-spinner">
+          <span id="reconnect-spinner" class="spinner-border spinner-border-sm me-2 d-none"></span>
+          <i class="fas fa-sync-alt me-1"></i>
+          重新連接
+        </button>
+      </div>
+    {% endif %}
+  </div>
+</div>
