@@ -1,0 +1,132 @@
+<!-- AI 對話組件 -->
+<div class="card border-primary" id="ai-chat-widget">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="card-title mb-0">
+      <i class="fas fa-robot me-2 text-primary"></i>
+      AI 助手對話
+    </h6>
+    <div class="chat-status">
+      <span class="badge bg-success">
+        <i class="fas fa-circle me-1"></i>就緒
+      </span>
+    </div>
+  </div>
+  
+  <!-- 對話歷史區域 -->
+  <div class="card-body p-0">
+    <div id="chat-messages" class="chat-messages-container">
+      <!-- 歡迎訊息 -->
+      <div class="message-wrapper assistant-message">
+        <div class="message-avatar">
+          <i class="fas fa-robot text-primary"></i>
+        </div>
+        <div class="message-content">
+          <div class="message-bubble">
+            <p class="mb-1">👋 您好！我是 LocalMind-MCP AI 助手。</p>
+            <p class="mb-0">我可以協助您管理 MCP 服務、回答問題或進行對話測試。請輸入您的訊息！</p>
+          </div>
+          <small class="message-time text-muted">系統訊息</small>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 輸入區域 -->
+  <div class="card-footer">
+    <form id="chat-form" 
+          hx-post="{% url 'mcp_management:chat_send' %}"
+          hx-target="#chat-messages"
+          hx-swap="beforeend"
+          hx-trigger="submit"
+          hx-indicator="#send-spinner">
+      {% csrf_token %}
+      
+      <div class="input-group">
+        <input type="text" 
+               name="message" 
+               id="chat-input"
+               class="form-control" 
+               placeholder="輸入您的訊息..."
+               autocomplete="off"
+               required>
+        
+        <button type="submit" 
+                class="btn btn-primary" 
+                id="send-button">
+          <span id="send-spinner" class="spinner-border spinner-border-sm me-2 d-none"></span>
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+      
+      <!-- 快速回覆選項 -->
+      <div class="quick-replies mt-2">
+        <small class="text-muted me-2">快速回覆:</small>
+        <button type="button" class="btn btn-outline-secondary btn-sm me-1" 
+                onclick="sendQuickMessage('檢查 MCP 狀態')">
+          檢查狀態
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm me-1" 
+                onclick="sendQuickMessage('介紹 LocalMind-MCP 功能')">
+          系統介紹
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" 
+                onclick="sendQuickMessage('如何使用 MCP 連接器？')">
+          使用說明
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// AI 對話組件 JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // 表單提交後清空輸入框
+    chatForm.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.successful) {
+            chatInput.value = '';
+            chatInput.focus();
+            
+            // 滾動到最新訊息
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
+        }
+    });
+    
+    // Enter 鍵提交 (Shift+Enter 換行)
+    chatInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            chatForm.requestSubmit();
+        }
+    });
+    
+    // 初始聚焦
+    chatInput.focus();
+});
+
+// 快速訊息發送
+function sendQuickMessage(message) {
+    const chatInput = document.getElementById('chat-input');
+    const chatForm = document.getElementById('chat-form');
+    
+    chatInput.value = message;
+    chatForm.requestSubmit();
+}
+
+// 清空對話歷史
+function clearChatHistory() {
+    const chatMessages = document.getElementById('chat-messages');
+    // 保留歡迎訊息
+    const welcomeMessage = chatMessages.querySelector('.assistant-message');
+    chatMessages.innerHTML = '';
+    if (welcomeMessage) {
+        chatMessages.appendChild(welcomeMessage);
+    }
+}
+</script>

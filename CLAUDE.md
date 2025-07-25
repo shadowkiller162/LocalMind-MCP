@@ -47,6 +47,66 @@ BEFORE CREATING/UPDATING DOCUMENTATION:
 ✅ ALL CHECKS PASS → Continue with documentation update
 ```
 
+#### 4. **🔗 Import Dependency Validation**
+```
+BEFORE WRITING/MODIFYING IMPORT STATEMENTS:
+□ Does the imported module actually exist? (Check: find . -name "[module].py")
+□ Is the import path correct based on actual file structure?
+□ Are all required types/classes available in the target module?
+□ Will this import work in the actual runtime environment?
+
+❌ VIOLATION DETECTED → Stop and verify module structure before proceeding
+✅ ALL CHECKS PASS → Continue with import modification
+```
+
+#### 5. **🎯 AI Response Content Parsing**
+```
+BEFORE PROCESSING AI/LLM RESPONSES:
+□ Does the response contain raw thinking tags (<think>, <thinking>)?
+□ Are thinking processes properly separated from user-facing content?
+□ Is the content human-readable and properly formatted?
+□ Will the content render correctly in templates?
+
+❌ VIOLATION DETECTED → Parse and clean response content before display
+✅ ALL CHECKS PASS → Continue with response rendering
+```
+
+#### 6. **🔤 UTF-8 Encoding Compliance**
+```
+BEFORE RETURNING HTTP RESPONSES:
+□ Are all .content.decode() calls using explicit 'utf-8' encoding?
+□ Are JsonResponse calls using ensure_ascii=False parameter?
+□ Will Chinese/Unicode characters display correctly in frontend?
+□ Are template render outputs properly encoded?
+
+❌ VIOLATION DETECTED → Add explicit UTF-8 encoding parameters
+✅ ALL CHECKS PASS → Continue with response rendering
+```
+
+#### 7. **🎨 Template Content Optimization**
+```
+BEFORE MODIFYING TEMPLATE FILES:
+□ Are JavaScript functions duplicated across templates?
+□ Is static content (CSS/JS) loaded in main template instead of partials?
+□ Will this template generate excessive HTML when rendered multiple times?
+□ Are there unnecessary whitespace or repeated code blocks?
+
+❌ VIOLATION DETECTED → Consolidate repeated content to main template
+✅ ALL CHECKS PASS → Continue with template modification
+```
+
+#### 8. **🔄 Frontend Integration Protocol Compliance**
+```
+BEFORE IMPLEMENTING FRONTEND RESPONSES:
+□ Does HTMX configuration expect HTML or JSON response?
+□ Are response types consistent with frontend expectations?
+□ Will the response format render correctly in the target element?
+□ Is the response content type properly set (text/html vs application/json)?
+
+❌ VIOLATION DETECTED → Align response format with frontend protocol
+✅ ALL CHECKS PASS → Continue with response implementation
+```
+
 ### **📊 PROJECT-SPECIFIC CONSTRAINTS**
 
 #### **Current Project Context: LocalMind-MCP**
@@ -61,6 +121,42 @@ key_files:
 critical_dependencies:
   - "ai_agent_automation.py:21 → from test_result_parser import TestResultParser"
   - "progress_updater.py:15 → from progress_updater import TestResults"
+  - "mcp_management/views.py → from mcp.llm import UnifiedModelManager, LLMServiceType"
+  - "mcp_management/views.py → from mcp.llm.types import ChatRequest, ChatMessage"
+
+mcp_module_structure:
+  - "mcp/llm/__init__.py → UnifiedModelManager, LLMServiceType exports"
+  - "mcp/llm/types.py → ChatRequest, ChatMessage dataclasses"
+  - "mcp/llm/unified_manager.py → UnifiedModelManager class implementation"
+  - "❌ NEVER import: mcp.llm_client (does not exist)"
+
+ai_response_parsing:
+  - "views.py:parse_ai_response() → Separates <think> tags from content"
+  - "templates/partials/chat_message.html → message-text class for formatting"
+  - "static/components/ai_chat.css → Enhanced message text styling"
+  - "✅ ALWAYS parse: Raw AI responses before template rendering"
+  - "❌ NEVER display: Unparsed content with thinking tags"
+
+utf8_encoding_standards:
+  - "views.py → .content.decode('utf-8') for all template renders"
+  - "views.py → JsonResponse(..., json_dumps_params={'ensure_ascii': False})"
+  - "✅ ALWAYS use: Explicit UTF-8 encoding for Chinese characters"
+  - "❌ NEVER use: .content.decode() without encoding parameter"
+  - "❌ NEVER allow: Unicode escape sequences in frontend display"
+
+template_optimization_standards:
+  - "partials/chat_message.html → No JavaScript code in message templates"
+  - "dashboard.html → Central JavaScript function management"
+  - "clean_html_whitespace() → Remove excessive whitespace/newlines"
+  - "✅ ALWAYS consolidate: Repeated JavaScript/CSS in main template"
+  - "❌ NEVER duplicate: Static content across partial templates"
+
+frontend_integration_protocols:
+  - "HTMX views → Return HttpResponse(html, content_type='text/html')"
+  - "API views → Return JsonResponse(..., json_dumps_params={'ensure_ascii': False})"
+  - "hx-target + hx-swap → Expects direct HTML insertion"
+  - "✅ ALWAYS match: Response format with frontend expectations"
+  - "❌ NEVER return: JSON to HTMX expecting HTML"
   
 test_command: "docker compose exec django pytest"
 docker_service: "django"
@@ -267,6 +363,24 @@ find . -name "*.md" | grep -i [keyword]
 
 # ❌ FORBIDDEN - Create without checking
 touch NEW_FILE.md
+```
+
+### 4. **📦 Docker Dependency Management Protocol**
+```bash
+# ✅ REQUIRED - Proper Docker dependency workflow
+# Step 1: Update requirements file
+echo "django-htmx==1.17.2" >> requirements/base.txt
+# Step 2: Rebuild Docker image
+docker compose build django
+# Step 3: Restart services
+docker compose up django -d
+
+# ❌ FORBIDDEN - Direct container package installation
+docker compose exec django pip install django-htmx==1.17.2
+docker exec container_name pip install package_name
+
+# 🚨 CRITICAL RULE: Container-installed packages disappear on restart
+# Always use requirements files + image rebuild for persistent dependencies
 ```
 
 ---

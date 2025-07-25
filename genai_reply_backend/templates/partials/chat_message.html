@@ -1,0 +1,113 @@
+<!-- 用戶訊息 -->
+{% if message_type == 'user' %}
+<div class="message-wrapper user-message" id="message-{{ message.id|default:'temp' }}">
+  <div class="message-content">
+    <div class="message-bubble user-bubble">
+      {{ message.content|linebreaks }}
+    </div>
+    <small class="message-time text-muted">{{ message.timestamp|default:'剛剛'|date:'H:i' }}</small>
+  </div>
+  <div class="message-avatar">
+    <i class="fas fa-user text-secondary"></i>
+  </div>
+</div>
+{% endif %}
+
+<!-- AI 助手回覆 -->
+{% if message_type == 'assistant' %}
+<div class="message-wrapper assistant-message" id="message-{{ message.id|default:'temp' }}">
+  <div class="message-avatar">
+    <i class="fas fa-robot text-primary"></i>
+  </div>
+  <div class="message-content">
+    <div class="message-bubble assistant-bubble">
+      {% if message.thinking %}
+        <!-- 思考過程顯示 (DeepSeek R1 thinking) -->
+        <details class="thinking-process mb-2">
+          <summary class="text-muted small">
+            <i class="fas fa-brain me-1"></i>思考過程 (點擊展開)
+          </summary>
+          <div class="thinking-content">
+            <pre class="small text-muted">{{ message.thinking }}</pre>
+          </div>
+        </details>
+      {% endif %}
+      
+      {% if message.is_streaming %}
+        <!-- 流式回覆 -->
+        <div id="streaming-content-{{ message.id|default:'temp' }}" class="message-text">
+          {{ message.content|linebreaks }}
+          <span class="typing-indicator">
+            <span></span><span></span><span></span>
+          </span>
+        </div>
+      {% else %}
+        <!-- 完整回覆 -->
+        <div class="message-text">
+          {{ message.content|linebreaks }}
+        </div>
+      {% endif %}
+      
+      {% if message.mcp_data %}
+        <!-- MCP 相關數據顯示 -->
+        <div class="mcp-data mt-2 p-2 bg-light rounded">
+          <small class="text-muted">
+            <i class="fas fa-database me-1"></i>
+            MCP 數據: {{ message.mcp_data.connector_type }} | {{ message.mcp_data.operation }}
+          </small>
+        </div>
+      {% endif %}
+    </div>
+    
+    <div class="message-actions">
+      <small class="message-time text-muted">{{ message.timestamp|default:'剛剛'|date:'H:i' }}</small>
+      
+      {% if not message.is_streaming %}
+        <div class="action-buttons ms-2">
+          <button class="btn btn-sm btn-outline-secondary" 
+                  onclick="copyMessage('{{ message.id|default:'temp' }}')"
+                  title="複製訊息">
+            <i class="fas fa-copy"></i>
+          </button>
+          
+          {% if message.can_regenerate %}
+            <button class="btn btn-sm btn-outline-primary" 
+                    hx-post="{% url 'mcp_management:chat_regenerate' %}"
+                    hx-vals='{"message_id": "{{ message.id }}"}'
+                    hx-target="#message-{{ message.id }}"
+                    hx-swap="outerHTML"
+                    title="重新生成">
+              <i class="fas fa-redo"></i>
+            </button>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- 錯誤訊息 -->
+{% if message_type == 'error' %}
+<div class="message-wrapper error-message">
+  <div class="message-avatar">
+    <i class="fas fa-exclamation-triangle text-warning"></i>
+  </div>
+  <div class="message-content">
+    <div class="message-bubble error-bubble">
+      <i class="fas fa-exclamation-circle me-2"></i>
+      {{ message.content|default:'發生錯誤，請稍後再試。' }}
+      
+      {% if message.error_details %}
+        <details class="mt-2">
+          <summary class="small text-muted">錯誤詳情</summary>
+          <pre class="small mt-1">{{ message.error_details }}</pre>
+        </details>
+      {% endif %}
+    </div>
+    <small class="message-time text-muted">{{ message.timestamp|default:'剛剛'|date:'H:i' }}</small>
+  </div>
+</div>
+{% endif %}
+
+<!-- JavaScript functions are loaded in the main dashboard template -->

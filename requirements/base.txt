@@ -89,3 +89,6 @@ yarl==1.18.3 ; python_version == "3.11"
 openai>=1.0.0 ; python_version == "3.11"
 anthropic>=0.25.0 ; python_version == "3.11"
 google-generativeai>=0.8.0 ; python_version == "3.11"
+
+# Frontend Enhancement
+django-htmx==1.17.2 ; python_version == "3.11"

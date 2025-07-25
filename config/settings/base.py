@@ -85,11 +85,13 @@ THIRD_PARTY_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "drf_spectacular",
+    "django_htmx",
 ]
 
 LOCAL_APPS = [
     "genai_reply_backend.users",
     "genai_reply_backend.chat",
+    "genai_reply_backend.mcp_management",
     # Your stuff: custom apps go here
     "core",
 ]
@@ -141,6 +143,7 @@ AUTH_PASSWORD_VALIDATORS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "django_htmx.middleware.HtmxMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",

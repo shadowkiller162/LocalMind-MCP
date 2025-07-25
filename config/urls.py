@@ -23,6 +23,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     # Chat interface
     path("chat/", include("genai_reply_backend.chat.urls", namespace="chat")),
+    # MCP Management interface
+    path("mcp/", include("genai_reply_backend.mcp_management.urls", namespace="mcp_management")),
     # Your stuff: custom urls includes go here
     path("api/users/", include("genai_reply_backend.users.api.urls")),
     path("api/core/", include("core.api.urls")),

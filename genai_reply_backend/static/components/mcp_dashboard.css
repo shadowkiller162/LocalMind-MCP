@@ -1,0 +1,77 @@
+/* MCP 管理儀表板專用樣式 */
+
+/* 狀態指示器動畫 */
+.status-indicator .badge {
+    transition: all 0.3s ease;
+}
+
+.status-indicator .fa-circle {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* 卡片懸停效果 */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* 載入指示器 */
+.htmx-request .spinner-border {
+    display: inline-block !important;
+}
+
+/* 快速操作按鈕 */
+.btn-outline-primary:hover {
+    transform: scale(1.02);
+}
+
+/* 即將推出功能區域 */
+.bg-light {
+    transition: background-color 0.3s ease;
+}
+
+.bg-light:hover {
+    background-color: #f8f9fa !important;
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .card-header h6 {
+        font-size: 0.9rem;
+    }
+}
+
+/* Toast 通知樣式 */
+.toast {
+    min-width: 300px;
+}
+
+.toast-header {
+    background-color: #f8f9fa;
+}
+
+/* HTMX 載入狀態 */
+.htmx-request {
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+/* 重新連接按鈕載入狀態 */
+.htmx-request #reconnect-spinner {
+    display: inline-block !important;
+}

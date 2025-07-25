@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }} - {{ block.super }}{% endblock title %}
+
+{% block css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="{% static 'components/mcp_dashboard.css' %}" rel="stylesheet">
+  <link href="{% static 'components/ai_chat.css' %}" rel="stylesheet">
+{% endblock css %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <!-- 頁面標題 -->
+  <div class="row mb-4">
+    <div class="col">
+      <h2 class="mb-1">
+        <i class="fas fa-cogs me-2 text-primary"></i>
+        MCP 管理控制台
+      </h2>
+      <p class="text-muted">監控和管理您的 Model Context Protocol 服務</p>
+    </div>
+  </div>
+
+  <!-- 即時狀態區域 -->
+  <div class="row mb-4">
+    <div class="col-lg-8">
+      <!-- MCP 狀態監控組件 (自動更新) -->
+      <div hx-get="{% url 'mcp_management:status' %}" 
+           hx-trigger="load, every 10s"
+           hx-swap="innerHTML">
+        <!-- 載入中指示器 -->
+        <div class="card border-secondary mb-3">
+          <div class="card-body text-center py-4">
+            <div class="spinner-border text-primary me-2" role="status"></div>
+            <span class="text-muted">載入 MCP 狀態中...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-4">
+      <!-- 快速操作面板 -->
+      <div class="card border-info mb-3">
+        <div class="card-header">
+          <h6 class="card-title mb-0">
+            <i class="fas fa-bolt me-2"></i>
+            快速操作
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button class="btn btn-outline-primary btn-sm" 
+                    hx-get="{% url 'mcp_management:status' %}"
+                    hx-target="[hx-get='{% url 'mcp_management:status' %}']"
+                    hx-swap="innerHTML">
+              <i class="fas fa-refresh me-1"></i>
+              刷新狀態
+            </button>
+            
+            <button class="btn btn-outline-secondary btn-sm" disabled>
+              <i class="fas fa-cog me-1"></i>
+              設定管理
+              <small class="text-muted d-block">即將推出</small>
+            </button>
+            
+            <button class="btn btn-outline-info btn-sm" disabled>
+              <i class="fas fa-chart-line me-1"></i>
+              性能監控
+              <small class="text-muted d-block">即將推出</small>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 系統信息 -->
+      <div class="card border-light">
+        <div class="card-header">
+          <h6 class="card-title mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            系統信息
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="small">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted">版本:</span>
+              <span>v2.0</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted">用戶:</span>
+              <span>{{ user.email|default:user.username }}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">環境:</span>
+              <span class="badge bg-success">開發</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 對話區域 -->
+  <div class="row mb-4">
+    <div class="col-lg-8">
+      <!-- AI 對話組件 -->
+      {% include 'components/ai_chat_widget.html' %}
+    </div>
+    
+    <div class="col-lg-4">
+      <!-- 對話助手說明 -->
+      <div class="card border-info">
+        <div class="card-header">
+          <h6 class="card-title mb-0">
+            <i class="fas fa-lightbulb me-2"></i>
+            AI 助手功能
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2">
+              <i class="fas fa-check text-success me-2"></i>
+              <small>MCP 系統狀態查詢</small>
+            </li>
+            <li class="mb-2">
+              <i class="fas fa-check text-success me-2"></i>
+              <small>技術問題解答</small>
+            </li>
+            <li class="mb-2">
+              <i class="fas fa-check text-success me-2"></i>
+              <small>使用說明指導</small>
+            </li>
+            <li class="mb-2">
+              <i class="fas fa-clock text-warning me-2"></i>
+              <small>連接器管理 (開發中)</small>
+            </li>
+            <li class="mb-0">
+              <i class="fas fa-clock text-warning me-2"></i>
+              <small>性能分析 (開發中)</small>
+            </li>
+          </ul>
+          
+          <div class="mt-3 pt-3 border-top">
+            <small class="text-muted">
+              <i class="fas fa-info-circle me-1"></i>
+              支援 DeepSeek R1 思考過程顯示
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 功能預覽區域 -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-warning">
+        <div class="card-header">
+          <h6 class="card-title mb-0">
+            <i class="fas fa-rocket me-2"></i>
+            更多功能開發中
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="border rounded p-3 h-100 bg-light">
+                <i class="fas fa-plug fa-2x text-success mb-3"></i>
+                <h6>連接器管理</h6>
+                <p class="text-muted small mb-0">管理文件系統、GitHub、資料庫等 MCP 連接器</p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="border rounded p-3 h-100 bg-light">
+                <i class="fas fa-chart-bar fa-2x text-info mb-3"></i>
+                <h6>性能分析</h6>
+                <p class="text-muted small mb-0">監控 MCP 性能指標和使用統計</p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="border rounded p-3 h-100 bg-light">
+                <i class="fas fa-mobile-alt fa-2x text-primary mb-3"></i>
+                <h6>移動應用</h6>
+                <p class="text-muted small mb-0">PWA 支援，移動設備優化體驗</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HTMX 事件處理 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 監聽 MCP 重新連接事件
+    document.body.addEventListener('mcpReconnected', function(e) {
+        // 顯示成功通知
+        const toast = `
+            <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong class="me-auto">成功</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        MCP 服務重新連接成功！
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', toast);
+        
+        // 3秒後自動移除
+        setTimeout(() => {
+            const toastElement = document.querySelector('.toast-container');
+            if (toastElement) {
+                toastElement.remove();
+            }
+        }, 3000);
+    });
+});
+
+// 訊息相關功能
+function copyMessage(messageId) {
+    const messageElement = document.getElementById('message-' + messageId);
+    const messageText = messageElement.querySelector('.message-bubble').textContent.trim();
+    
+    navigator.clipboard.writeText(messageText).then(function() {
+        showToast('訊息已複製到剪貼板', 'success');
+    }).catch(function(err) {
+        console.error('複製失敗:', err);
+        showToast('複製失敗', 'error');
+    });
+}
+
+// 顯示 Toast 通知 (統一函數)
+function showToast(message, type = 'info') {
+    const toastHtml = `
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div class="toast show" role="alert">
+                <div class="toast-header">
+                    <i class="fas fa-${type === 'success' ? 'check-circle text-success' : 'info-circle text-info'} me-2"></i>
+                    <strong class="me-auto">${type === 'success' ? '成功' : '提示'}</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', toastHtml);
+    
+    // 3秒後自動移除
+    setTimeout(() => {
+        const toastElement = document.querySelector('.toast-container:last-child');
+        if (toastElement) {
+            toastElement.remove();
+        }
+    }, 3000);
+}
+</script>
+{% endblock content %}
