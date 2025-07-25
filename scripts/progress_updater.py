@@ -12,7 +12,7 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, asdict
 
 from framework_detection import FrameworkDetector, FrameworkType
@@ -20,7 +20,8 @@ from framework_detection import FrameworkDetector, FrameworkType
 
 @dataclass
 class TestResults:
-    """Test execution results"""
+    """Enhanced test execution results with detailed breakdown"""
+    # Backward compatibility - existing fields
     unit_tests_passed: int = 0
     unit_tests_total: int = 0
     integration_tests_passed: int = 0
@@ -29,6 +30,40 @@ class TestResults:
     test_command_used: str = ""
     execution_time: float = 0.0
     success: bool = False
+    
+    # Enhanced fields - new additions
+    framework: str = "unknown"
+    total_tests: int = 0
+    passed_tests: int = 0
+    failed_tests: int = 0
+    skipped_tests: int = 0
+    error_tests: int = 0
+    
+    # E2E tests support
+    e2e_tests_passed: int = 0
+    e2e_tests_total: int = 0
+    
+    # Detailed coverage
+    coverage_lines_covered: int = 0
+    coverage_lines_total: int = 0
+    
+    # Performance metrics
+    slowest_tests: List[Dict[str, Any]] = None
+    memory_usage: Optional[float] = None
+    
+    # Error details
+    failure_details: List[str] = None
+    error_summary: str = ""
+    
+    def __post_init__(self):
+        if self.slowest_tests is None:
+            self.slowest_tests = []
+        if self.failure_details is None:
+            self.failure_details = []
+        
+        # Auto-calculate total_tests if not set
+        if self.total_tests == 0:
+            self.total_tests = self.passed_tests + self.failed_tests + self.skipped_tests + self.error_tests
 
 
 @dataclass

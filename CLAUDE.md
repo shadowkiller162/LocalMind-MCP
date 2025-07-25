@@ -2,8 +2,235 @@
 
 > **Purpose**: Universal development rules and guidelines for Claude Code CLI  
 > **Scope**: Django & FastAPI projects  
-> **Version**: v2.0  
-> **Last Updated**: 2025-07-24
+> **Version**: v2.1  
+> **Last Updated**: 2025-07-25
+
+---
+
+## 🚨 AI PREFLIGHT CHECKLIST SYSTEM
+
+> **Critical**: Execute this checklist BEFORE ANY code/file modification to prevent violations and ensure compliance with development standards.
+
+### **⚡ MANDATORY PREFLIGHT CHECKS**
+
+#### 1. **📋 File Strategy Validation**
+```
+BEFORE MODIFYING/CREATING ANY FILE:
+□ Can I modify existing file instead of creating new one?
+□ Which files import/reference this module? (Check: grep -r "import.*[filename]" .)
+□ Will this modification break existing functionality?
+□ Is this the minimal change approach?
+
+❌ VIOLATION DETECTED → Stop and ask human before proceeding
+✅ ALL CHECKS PASS → Continue with modification
+```
+
+#### 2. **🐳 Docker Environment Compliance**
+```
+BEFORE EXECUTING ANY COMMAND:
+□ Am I using `docker compose exec [service]` prefix?
+□ Am I avoiding direct host commands (python, pytest, etc.)?
+□ Is the correct service container specified?
+
+❌ VIOLATION DETECTED → Stop and ask human before proceeding
+✅ ALL CHECKS PASS → Continue with command execution
+```
+
+#### 3. **📋 Documentation Standards**
+```
+BEFORE CREATING/UPDATING DOCUMENTATION:
+□ Did I search for existing documentation files first?
+□ Am I updating existing files rather than creating new ones?
+□ Are my Git commit messages in English only?
+
+❌ VIOLATION DETECTED → Stop and ask human before proceeding
+✅ ALL CHECKS PASS → Continue with documentation update
+```
+
+### **📊 PROJECT-SPECIFIC CONSTRAINTS**
+
+#### **Current Project Context: LocalMind-MCP**
+```yaml
+framework: Django
+key_files:
+  - ai_agent_automation.py    # Main automation orchestrator
+  - progress_updater.py       # Documentation updater
+  - test_result_parser.py     # Test result processor
+  - framework_detection.py   # Framework detection logic
+
+critical_dependencies:
+  - "ai_agent_automation.py:21 → from test_result_parser import TestResultParser"
+  - "progress_updater.py:15 → from progress_updater import TestResults"
+  
+test_command: "docker compose exec django pytest"
+docker_service: "django"
+```
+
+### **🤖 AI DECISION PROTOCOL**
+
+When ANY modification is needed, AI MUST explicitly state:
+
+```markdown
+🔍 PREFLIGHT CHECK EXECUTED:
+- File Strategy: [✅ PASS/❌ FAIL - specific reason]
+- Docker Compliance: [✅ PASS/❌ FAIL - specific reason]  
+- Documentation Standards: [✅ PASS/❌ FAIL - specific reason]
+
+📊 IMPACT ANALYSIS:
+- Files affected: [list all files that will be modified]
+- Dependencies broken: [list any import/reference breaks]
+- Risk level: [HIGH/MEDIUM/LOW]
+
+💡 SOLUTION OPTIONS:
+- Option A: [minimal change approach with justification]
+- Option B: [alternative approach with trade-offs]
+- Recommended: [chosen option with detailed reasoning]
+
+🎯 HUMAN CONSULTATION REQUIRED: [YES/NO - if YES, explain why]
+```
+
+### **🚀 EXECUTION TRIGGER MECHANISMS**
+
+#### **1. Session Initialization Trigger**
+At the start of EVERY Claude Code session, AI MUST load and acknowledge:
+
+```markdown
+🤖 AI AGENT INITIALIZED
+📋 Loaded: CLAUDE.md Preflight Checklist System v2.1
+🎯 Mode: Human-Assisted Development (HAD)
+✅ Ready to assist with rule-compliant development
+
+Current Project Context Loaded:
+- Framework: Django
+- Docker Service: django  
+- Key Dependencies: [list from PROJECT-SPECIFIC CONSTRAINTS]
+```
+
+#### **2. Pre-Modification Trigger**
+BEFORE any file modification, AI MUST:
+
+```markdown
+⚠️  PREFLIGHT CHECK REQUIRED
+I'm about to modify [filename]. Let me run the mandatory checks first...
+
+[Execute checklist and display results]
+
+🤔 HUMAN DECISION POINT:
+Based on the above analysis, would you like me to:
+A) Proceed with recommended approach
+B) Use alternative approach  
+C) Let you handle this manually
+D) Discuss other options
+
+Please select: [A/B/C/D]
+```
+
+#### **3. Violation Detection Trigger**
+When violations are detected:
+
+```markdown
+🚨 RULE VIOLATION DETECTED
+
+Violation Type: [specific rule broken]
+Potential Impact: [consequences if ignored]
+Compliant Alternative: [suggested solution]
+
+🤔 HUMAN CHOICE REQUIRED:
+1. Apply compliant solution automatically
+2. Override violation with justification
+3. Pause for manual handling
+4. Update rule (if this is a new valid pattern)
+
+Please respond with choice number: [1/2/3/4]
+```
+
+#### **4. Learning Feedback Trigger**
+After human corrections or overrides:
+
+```markdown
+📚 LEARNING OPPORTUNITY DETECTED
+
+Human Action: [what you did differently]
+AI Suggestion: [what AI recommended]
+Outcome: [result of human choice]
+
+🎯 RULE UPDATE PROPOSAL:
+Should this pattern be added to CLAUDE.md for future reference?
+- New rule: [proposed addition]  
+- Reason: [why this improves development]
+
+Add to checklist? [Yes/No/Modify]
+```
+
+### **⚡ IMMEDIATE ACTIVATION PROTOCOL**
+
+To activate this system immediately, add this section to your Claude Code CLI startup prompt:
+
+```markdown
+## SYSTEM INITIALIZATION COMMAND
+Load and execute CLAUDE.md Preflight Checklist System v2.1
+- Enable Human-Assisted Development (HAD) mode
+- Display session initialization trigger
+- Prepare to execute preflight checks before any modification
+- Ready violation detection and human consultation triggers
+```
+
+### **🔄 TRIGGER TESTING PROTOCOL**
+
+To verify the system works correctly:
+
+```markdown
+TEST SEQUENCE:
+1. Start new Claude Code session → Should display initialization trigger
+2. Request file modification → Should execute preflight check
+3. Introduce intentional violation → Should trigger violation detection
+4. Provide feedback/correction → Should trigger learning feedback
+
+PASS CRITERIA:
+- All 4 triggers execute correctly
+- Human decision points are clearly presented  
+- No actions taken without human confirmation on violations
+```
+
+### **🚨 VIOLATION RESPONSE PROTOCOL**
+
+When violations are detected:
+
+#### **For HIGH RISK Changes:**
+- ❌ **STOP IMMEDIATELY**
+- 🤔 **Ask Human**: "I detected [violation type]. This could [potential impact]. Should I proceed with [alternative approach] or would you prefer a different solution?"
+
+#### **For MEDIUM RISK Changes:**
+- ⚠️ **Warn and Suggest**: "I notice this violates [rule]. I recommend [compliant alternative]. Shall I proceed with the compliant approach?"
+
+#### **For LOW RISK Changes:**
+- ✅ **Proceed with Note**: "Applied [compliant solution] to avoid [potential violation]."
+
+### **📈 EFFECTIVENESS METRICS**
+
+Track these metrics to measure system improvement:
+
+```yaml
+token_efficiency:
+  baseline_tokens: "[record initial session token usage]"
+  optimized_tokens: "[record post-checklist token usage]"
+  target_reduction: "30%"
+
+file_management:
+  duplicate_files_created: 0
+  unnecessary_modifications: 0
+  backward_compatibility_breaks: 0
+
+human_intervention:
+  violations_caught_pre_execution: "[count]"
+  human_corrections_required: "[count]" 
+  error_types_prevented: "[list categories]"
+
+quality_indicators:
+  import_dependency_errors: 0
+  architecture_violations: 0
+  rule_compliance_rate: ">95%"
+```
 
 ---
 

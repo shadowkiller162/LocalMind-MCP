@@ -39,6 +39,22 @@ This project implements a scalable backend system evolving from a Gen AI auto-re
 
 License: MIT
 
+## 📚 文檔導航
+
+完整的專案文檔已按照 [CLAUDE.md](CLAUDE.md) 指導原則重新組織：
+
+### 🚀 快速開始
+- 📖 **專案文檔總覽**: [`docs/README.md`](docs/README.md)
+- 🔧 **環境設置指南**: [`docs/human/setup/`](docs/human/setup/)
+- 🐳 **Docker 部署**: [`docs/human/setup/docker_setup_complete_guide.md`](docs/human/setup/docker_setup_complete_guide.md)
+- 🔑 **API 金鑰配置**: [`docs/human/setup/API_KEYS_SETUP.md`](docs/human/setup/API_KEYS_SETUP.md)
+
+### 👨‍💻 開發者資源
+- 🏗️ **開發文檔**: [`docs/human/development/`](docs/human/development/)
+- 🧪 **測試指南**: [`docs/human/testing/`](docs/human/testing/)
+- 🤖 **AI Agent 框架**: [CLAUDE.md](CLAUDE.md)
+- 📊 **專案進度**: [`docs/ai_agent/milestone_tracking.md`](docs/ai_agent/milestone_tracking.md)
+
 ## Features
 
 - 🔧 Built with cookiecutter-django

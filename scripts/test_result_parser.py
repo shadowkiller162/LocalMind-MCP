@@ -10,9 +10,18 @@ import re
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
+from enum import Enum
 from progress_updater import TestResults
+
+
+class TestFramework(Enum):
+    """Supported test frameworks"""
+    PYTEST = "pytest"
+    DJANGO_TEST = "django_test"
+    UNITTEST = "unittest"
+    UNKNOWN = "unknown"
 
 
 @dataclass
@@ -28,8 +37,40 @@ class TestExecution:
 class TestResultParser:
     """Parser for different test framework outputs"""
     
+    # Enhanced test patterns for better parsing
+    PYTEST_PATTERNS = {
+        'summary': [
+            r'=+ (\d+) failed,? (\d+) passed.*in ([\d.]+)s =+',
+            r'=+ (\d+) passed.*in ([\d.]+)s =+',
+            r'(\d+) passed(?:, (\d+) failed)?(?:, (\d+) skipped)?(?:, (\d+) error)?.*in ([\d.]+)s',
+        ],
+        'coverage': [
+            r'TOTAL\s+(\d+)\s+(\d+)\s+(\d+)%',
+            r'Total coverage: ([\d.]+)%',
+            r'Coverage: ([\d.]+)%'
+        ],
+        'slow_tests': [
+            r'([\d.]+)s call.*::(test_\w+)',
+            r'(test_\w+).*?([\d.]+)s'
+        ]
+    }
+    
+    DJANGO_PATTERNS = {
+        'summary': [
+            r'Ran (\d+) tests? in ([\d.]+)s',
+            r'FAILED \(failures=(\d+)(?:, errors=(\d+))?\)',
+            r'OK'
+        ],
+        'failures': [
+            r'FAIL: (test_\w+)',
+            r'ERROR: (test_\w+)'
+        ]
+    }
+    
     def __init__(self, project_root: Path = None):
         self.project_root = project_root or Path.cwd()
+        self._is_running_in_container = self._detect_container_environment()
+        self.framework_detection_cache = {}
     
     def run_and_parse_tests(self, test_command: str) -> TestExecution:
         """
@@ -43,13 +84,17 @@ class TestResultParser:
         start_time = time.time()
         
         try:
+            # Parse command to handle Docker container execution properly
+            parsed_command = self._parse_command_for_container(test_command)
+            
             # Execute test command
             result = subprocess.run(
-                test_command.split(),
+                parsed_command,
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
+                shell=True  # Use shell for complex commands
             )
             
             execution_time = time.time() - start_time
@@ -69,9 +114,38 @@ class TestResultParser:
             
         except subprocess.TimeoutExpired:
             execution_time = time.time() - start_time
+            error_msg = f"Test execution timed out after 5 minutes. Command: {test_command}"
             return TestExecution(
                 command=test_command,
-                output="Test execution timed out after 5 minutes",
+                output=error_msg,
+                return_code=1,
+                execution_time=execution_time,
+                results=TestResults(
+                    test_command_used=test_command,
+                    execution_time=execution_time,
+                    success=False
+                )
+            )
+        except FileNotFoundError as e:
+            execution_time = time.time() - start_time
+            error_msg = f"Command not found: {e}. Command: {test_command}\nTip: Make sure you're running this from the correct environment."
+            return TestExecution(
+                command=test_command,
+                output=error_msg,
+                return_code=127,
+                execution_time=execution_time,
+                results=TestResults(
+                    test_command_used=test_command,
+                    execution_time=execution_time,
+                    success=False
+                )
+            )
+        except Exception as e:
+            execution_time = time.time() - start_time
+            error_msg = f"Unexpected error during test execution: {e}. Command: {test_command}"
+            return TestExecution(
+                command=test_command,
+                output=error_msg,
                 return_code=1,
                 execution_time=execution_time,
                 results=TestResults(
@@ -81,162 +155,384 @@ class TestResultParser:
                 )
             )
     
+    def _detect_container_environment(self) -> bool:
+        """Detect if we're running inside a Docker container"""
+        try:
+            # Check for /.dockerenv file (Docker creates this)
+            if Path('/.dockerenv').exists():
+                return True
+            
+            # Check for container indicators in /proc/1/cgroup
+            if Path('/proc/1/cgroup').exists():
+                with open('/proc/1/cgroup', 'r') as f:
+                    content = f.read()
+                    if 'docker' in content or 'containerd' in content:
+                        return True
+            
+            return False
+        except Exception:
+            return False
+    
+    def _parse_command_for_container(self, test_command: str) -> str:
+        """Parse command to work properly in container environment"""
+        
+        # If we're running inside a container and the command starts with "docker compose exec"
+        if self._is_running_in_container and test_command.startswith("docker compose exec"):
+            # Extract the actual command from "docker compose exec [service] [command]"
+            parts = test_command.split()
+            if len(parts) >= 4:  # docker compose exec service command...
+                # Return just the command part (skip "docker compose exec service")
+                return " ".join(parts[4:])  # Skip docker, compose, exec, service
+            else:
+                # Fallback to the original command if parsing fails
+                return test_command
+        
+        # If we're not in a container, return the command as-is
+        return test_command
+    
+    def detect_test_framework(self, command: str, output: str) -> TestFramework:
+        """Detect test framework from command and output with caching"""
+        
+        # Check cache first
+        cache_key = f"{command}_{hash(output[:200])}"
+        if cache_key in self.framework_detection_cache:
+            return self.framework_detection_cache[cache_key]
+        
+        framework = TestFramework.UNKNOWN
+        
+        # Command-based detection (most reliable)
+        if 'pytest' in command.lower():
+            framework = TestFramework.PYTEST
+        elif 'manage.py test' in command.lower():
+            framework = TestFramework.DJANGO_TEST
+        elif 'python -m unittest' in command.lower():
+            framework = TestFramework.UNITTEST
+        
+        # Output-based detection (fallback)
+        if framework == TestFramework.UNKNOWN:
+            if any(pattern in output.lower() for pattern in ['pytest', 'conftest', 'test session starts']):
+                framework = TestFramework.PYTEST
+            elif any(pattern in output.lower() for pattern in ['django', 'creating test database']):
+                framework = TestFramework.DJANGO_TEST
+            elif 'unittest' in output.lower():
+                framework = TestFramework.UNITTEST
+        
+        # Cache result
+        self.framework_detection_cache[cache_key] = framework
+        return framework
+    
     def _parse_test_output(self, output: str, command: str) -> TestResults:
         """Parse test output based on framework type"""
         
         # Initialize results
         results = TestResults(test_command_used=command)
         
-        # Detect test framework from command and output
-        if "pytest" in command.lower() or "pytest" in output.lower():
-            return self._parse_pytest_output(output, results)
-        elif "python manage.py test" in command or "django" in output.lower():
-            return self._parse_django_test_output(output, results)
+        # Detect framework using enhanced detection
+        framework = self.detect_test_framework(command, output)
+        results.framework = framework.value
+        
+        # Parse based on detected framework
+        if framework == TestFramework.PYTEST:
+            self._parse_pytest_output_enhanced(output, results)
+        elif framework == TestFramework.DJANGO_TEST:
+            self._parse_django_test_output_enhanced(output, results)
+        elif framework == TestFramework.UNITTEST:
+            self._parse_unittest_output(output, results)
         else:
-            return self._parse_generic_output(output, results)
-    
-    def _parse_pytest_output(self, output: str, results: TestResults) -> TestResults:
-        """Parse pytest output format"""
+            self._parse_generic_output_enhanced(output, results)
         
-        # Parse test summary line (e.g., "10 passed, 2 failed, 1 skipped")
-        summary_pattern = r"(\d+)\s+passed(?:,\s+(\d+)\s+failed)?(?:,\s+(\d+)\s+skipped)?"
-        summary_match = re.search(summary_pattern, output, re.IGNORECASE)
-        
-        if summary_match:
-            passed = int(summary_match.group(1))
-            failed = int(summary_match.group(2) or 0)
-            skipped = int(summary_match.group(3) or 0)
-            
-            # Assume all tests are unit tests unless specified otherwise
-            results.unit_tests_passed = passed
-            results.unit_tests_total = passed + failed
-        
-        # Parse coverage if present
-        coverage_pattern = r"TOTAL\s+\d+\s+\d+\s+(\d+)%"
-        coverage_match = re.search(coverage_pattern, output)
-        if coverage_match:
-            results.coverage_percentage = float(coverage_match.group(1))
-        
-        # Alternative coverage pattern
-        alt_coverage_pattern = r"Total coverage:\s+(\d+\.?\d*)%"
-        alt_coverage_match = re.search(alt_coverage_pattern, output)
-        if alt_coverage_match:
-            results.coverage_percentage = float(alt_coverage_match.group(1))
-        
-        # Parse execution time
-        time_pattern = r"(\d+\.?\d*)\s*seconds?"
-        # Look in last few lines of output
-        last_lines = '\n'.join(output.split('\n')[-5:])
-        time_match = re.search(time_pattern, last_lines)
-        if time_match:
-            results.execution_time = float(time_match.group(1))
-        
-        # Check for integration test indicators
-        if "integration" in output.lower() or "e2e" in output.lower():
-            # Try to separate integration tests (rough heuristic)
-            integration_pattern = r"integration.*?(\d+)\s+passed"
-            integration_match = re.search(integration_pattern, output, re.IGNORECASE)
-            if integration_match:
-                results.integration_tests_passed = int(integration_match.group(1))
-                results.integration_tests_total = results.integration_tests_passed
-                results.unit_tests_total -= results.integration_tests_passed
-                results.unit_tests_passed -= results.integration_tests_passed
+        # Extract additional performance metrics and failure details
+        self._extract_performance_metrics(output, results)
+        if not results.success:
+            self._extract_failure_details(output, results)
         
         return results
     
-    def _parse_django_test_output(self, output: str, results: TestResults) -> TestResults:
-        """Parse Django test runner output"""
+    def _parse_pytest_output_enhanced(self, output: str, results: TestResults) -> None:
+        """Enhanced pytest output parsing with better pattern recognition"""
         
-        # Django test pattern: "Ran X tests in Y seconds"
-        test_pattern = r"Ran (\d+) tests? in ([\d.]+)s"
-        test_match = re.search(test_pattern, output)
+        # Parse main summary line with multiple patterns
+        for pattern in self.PYTEST_PATTERNS['summary']:
+            match = re.search(pattern, output, re.IGNORECASE | re.MULTILINE)
+            if match:
+                self._extract_pytest_counts(match, results)
+                break
         
-        if test_match:
-            total_tests = int(test_match.group(1))
-            execution_time = float(test_match.group(2))
-            results.execution_time = execution_time
-            
-            # Check for failures
-            if "FAILED" in output or "ERROR" in output:
-                failure_pattern = r"FAILED \((?:failures=(\d+))?(?:, ?errors=(\d+))?\)"
-                failure_match = re.search(failure_pattern, output)
-                if failure_match:
-                    failures = int(failure_match.group(1) or 0)
-                    errors = int(failure_match.group(2) or 0)
-                    failed_total = failures + errors
-                    
-                    results.unit_tests_total = total_tests
-                    results.unit_tests_passed = total_tests - failed_total
-                else:
-                    # Assume all failed if we can't parse specifics
-                    results.unit_tests_total = total_tests
-                    results.unit_tests_passed = 0
+        # Parse coverage with multiple patterns
+        for pattern in self.PYTEST_PATTERNS['coverage']:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                try:
+                    if len(match.groups()) >= 3:  # TOTAL format
+                        results.coverage_lines_covered = int(match.group(2))
+                        results.coverage_lines_total = int(match.group(1)) + int(match.group(2))
+                        results.coverage_percentage = float(match.group(3))
+                    else:  # Percentage only format
+                        results.coverage_percentage = float(match.group(1))
+                except (ValueError, IndexError):
+                    pass
+                break
+        
+        # Parse test categories (unit vs integration vs e2e)
+        self._categorize_tests_from_output(output, results)
+        
+        # Extract slow tests
+        self._extract_slow_tests_pytest(output, results)
+    
+    def _parse_django_test_output_enhanced(self, output: str, results: TestResults) -> None:
+        """Enhanced Django test output parsing"""
+        
+        # Parse "Ran X tests in Y seconds"
+        ran_match = re.search(r'Ran (\d+) tests? in ([\d.]+)s', output)
+        if ran_match:
+            results.total_tests = int(ran_match.group(1))
+            results.execution_time = float(ran_match.group(2))
+        
+        # Check for failures and errors
+        if 'FAILED' in output:
+            failure_match = re.search(r'FAILED \((?:failures=(\d+))?(?:, ?errors=(\d+))?\)', output)
+            if failure_match:
+                failures = int(failure_match.group(1) or 0)
+                errors = int(failure_match.group(2) or 0)
+                results.failed_tests = failures
+                results.error_tests = errors
+                results.passed_tests = results.total_tests - failures - errors
             else:
-                # All tests passed
-                results.unit_tests_total = total_tests
-                results.unit_tests_passed = total_tests
+                # Assume all tests failed if we can't parse specifics
+                results.failed_tests = results.total_tests
+                results.passed_tests = 0
+        elif 'OK' in output:
+            results.passed_tests = results.total_tests
+            results.failed_tests = 0
         
-        # Django doesn't typically include coverage, but check anyway
+        # Django tests are typically unit tests unless otherwise specified
+        results.unit_tests_total = results.total_tests
+        results.unit_tests_passed = results.passed_tests
+        
+        # Check for coverage
         coverage_match = re.search(r"(\d+)%\s+coverage", output)
         if coverage_match:
             results.coverage_percentage = float(coverage_match.group(1))
-        
-        return results
     
-    def _parse_generic_output(self, output: str, results: TestResults) -> TestResults:
-        """Parse generic test output when framework is unknown"""
+    def _parse_unittest_output(self, output: str, results: TestResults) -> None:
+        """Parse unittest output"""
         
-        # Look for common success indicators
-        success_indicators = [
-            r"all tests? passed",
-            r"(\d+) passed",
-            r"tests?: (\d+) passed",
-            r"success",
+        # Parse "Ran X tests in Y seconds"
+        ran_match = re.search(r'Ran (\d+) tests? in ([\d.]+)s', output)
+        if ran_match:
+            results.total_tests = int(ran_match.group(1))
+            results.execution_time = float(ran_match.group(2))
+        
+        # Check for OK or FAILED
+        if 'OK' in output:
+            results.passed_tests = results.total_tests
+        elif 'FAILED' in output:
+            # Try to extract failure count
+            fail_match = re.search(r'failures=(\d+)', output)
+            if fail_match:
+                results.failed_tests = int(fail_match.group(1))
+                results.passed_tests = results.total_tests - results.failed_tests
+        
+        results.unit_tests_total = results.total_tests
+        results.unit_tests_passed = results.passed_tests
+    
+    def _parse_generic_output_enhanced(self, output: str, results: TestResults) -> None:
+        """Enhanced generic output parsing with better heuristics"""
+        
+        # Look for common test result patterns
+        patterns = [
+            r'(\d+) tests?, (\d+) passed, (\d+) failed',
+            r'(\d+) passed.*?(\d+) failed',
+            r'Tests run: (\d+).*?Failures: (\d+)',
+            r'(\d+) tests passed',
+            r'(\d+) tests failed'
         ]
         
-        for pattern in success_indicators:
+        for pattern in patterns:
             match = re.search(pattern, output, re.IGNORECASE)
-            if match and len(match.groups()) > 0:
-                try:
-                    passed = int(match.group(1))
-                    results.unit_tests_passed = passed
-                    results.unit_tests_total = passed
-                    break
-                except (ValueError, IndexError):
-                    continue
+            if match:
+                groups = match.groups()
+                if len(groups) >= 3:  # Full pattern
+                    results.total_tests = int(groups[0])
+                    results.passed_tests = int(groups[1])
+                    results.failed_tests = int(groups[2])
+                elif len(groups) == 2:  # Passed/failed only
+                    results.passed_tests = int(groups[0])
+                    results.failed_tests = int(groups[1])
+                    results.total_tests = results.passed_tests + results.failed_tests
+                elif 'passed' in pattern:
+                    results.passed_tests = int(groups[0])
+                    results.total_tests = results.passed_tests
+                elif 'failed' in pattern:
+                    results.failed_tests = int(groups[0])
+                break
         
-        # Look for failure indicators
-        failure_pattern = r"(\d+)\s+failed"
-        failure_match = re.search(failure_pattern, output, re.IGNORECASE)
-        if failure_match:
-            failed = int(failure_match.group(1))
-            results.unit_tests_total += failed
+        results.unit_tests_total = results.total_tests
+        results.unit_tests_passed = results.passed_tests
+    
+    def _extract_pytest_counts(self, match, results: TestResults) -> None:
+        """Extract counts from pytest summary match"""
+        groups = match.groups()
         
-        return results
+        # Handle different summary formats
+        if 'failed' in match.group(0).lower() and 'passed' in match.group(0).lower():
+            # Format: "X failed, Y passed in Z seconds"
+            try:
+                results.failed_tests = int(groups[0])
+                results.passed_tests = int(groups[1])
+                results.total_tests = results.failed_tests + results.passed_tests
+                if len(groups) > 2:
+                    results.execution_time = float(groups[2])
+            except (ValueError, IndexError):
+                pass
+        elif 'passed' in match.group(0).lower():
+            # Format: "X passed in Y seconds"
+            try:
+                results.passed_tests = int(groups[0])
+                results.total_tests = results.passed_tests
+                if len(groups) > 1:
+                    results.execution_time = float(groups[1])
+            except (ValueError, IndexError):
+                pass
+    
+    def _categorize_tests_from_output(self, output: str, results: TestResults) -> None:
+        """Categorize tests based on naming patterns and directory structure"""
+        
+        # Look for test categories in output
+        unit_patterns = [r'test_unit', r'unit_test', r'tests/unit', r'unit/']
+        integration_patterns = [r'test_integration', r'integration_test', r'tests/integration', r'integration/']
+        e2e_patterns = [r'test_e2e', r'e2e_test', r'tests/e2e', r'e2e/', r'test_end_to_end']
+        
+        # Count occurrences of each pattern
+        unit_count = sum(len(re.findall(pattern, output, re.IGNORECASE)) for pattern in unit_patterns)
+        integration_count = sum(len(re.findall(pattern, output, re.IGNORECASE)) for pattern in integration_patterns)
+        e2e_count = sum(len(re.findall(pattern, output, re.IGNORECASE)) for pattern in e2e_patterns)
+        
+        # Distribute tests based on patterns found
+        if unit_count > 0 or integration_count > 0 or e2e_count > 0:
+            total_categorized = unit_count + integration_count + e2e_count
+            
+            if total_categorized <= results.total_tests:
+                results.unit_tests_total = unit_count
+                results.integration_tests_total = integration_count
+                results.e2e_tests_total = e2e_count
+                
+                # Assume passed tests are distributed proportionally
+                if results.total_tests > 0:
+                    pass_ratio = results.passed_tests / results.total_tests
+                    results.unit_tests_passed = int(results.unit_tests_total * pass_ratio)
+                    results.integration_tests_passed = int(results.integration_tests_total * pass_ratio)
+                    results.e2e_tests_passed = int(results.e2e_tests_total * pass_ratio)
+        else:
+            # Default: assume all tests are unit tests
+            results.unit_tests_total = results.total_tests
+            results.unit_tests_passed = results.passed_tests
+    
+    def _extract_slow_tests_pytest(self, output: str, results: TestResults) -> None:
+        """Extract slow test information from pytest output"""
+        
+        # Look for slowest tests section
+        slowest_section = re.search(r'slowest.*?tests.*?\n(.*?)(?:\n=|$)', output, re.IGNORECASE | re.DOTALL)
+        if slowest_section:
+            slow_tests = []
+            for line in slowest_section.group(1).split('\n'):
+                time_match = re.search(r'([\d.]+)s.*?::(test_\w+)', line)
+                if time_match:
+                    slow_tests.append({
+                        'test_name': time_match.group(2),
+                        'duration': float(time_match.group(1))
+                    })
+            results.slowest_tests = slow_tests[:5]  # Keep top 5
+    
+    def _extract_performance_metrics(self, output: str, results: TestResults) -> None:
+        """Extract additional performance metrics from output"""
+        
+        # Memory usage (if available)
+        memory_match = re.search(r'memory usage:?\s*([\d.]+)\s*MB', output, re.IGNORECASE)
+        if memory_match:
+            results.memory_usage = float(memory_match.group(1))
+    
+    def _extract_failure_details(self, output: str, results: TestResults) -> None:
+        """Extract failure details for debugging"""
+        
+        # Look for FAILURES section
+        failures_section = re.search(r'FAILURES.*?\n(.*?)(?:\n=+|$)', output, re.DOTALL)
+        if failures_section:
+            failure_text = failures_section.group(1)
+            
+            # Extract individual test failures
+            test_failures = re.findall(r'FAILED (test_\w+).*?\n(.*?)(?=FAILED|$)', failure_text, re.DOTALL)
+            for test_name, error_detail in test_failures[:5]:  # Limit to 5 failures
+                results.failure_details.append(f"{test_name}: {error_detail.strip()[:200]}...")
+        
+        # Set error summary
+        if results.failed_tests > 0:
+            results.error_summary = f"{results.failed_tests} test(s) failed"
+        if results.error_tests > 0:
+            results.error_summary += f", {results.error_tests} error(s)"
     
     def generate_test_report(self, execution: TestExecution) -> Dict:
-        """Generate structured test report"""
-        return {
-            "timestamp": TestExecution.__annotations__.get("timestamp", ""),
-            "command": execution.command,
-            "return_code": execution.return_code,
-            "execution_time": execution.execution_time,
-            "success": execution.results.success,
-            "results": {
+        """Generate enhanced structured test report"""
+        from datetime import datetime
+        
+        report = {
+            "meta": {
+                "timestamp": datetime.now().isoformat(),
+                "framework": execution.results.framework,
+                "command": execution.command,
+                "execution_time": execution.execution_time,
+                "success": execution.results.success,
+                "return_code": execution.return_code
+            },
+            "summary": {
+                "total_tests": execution.results.total_tests,
+                "passed": execution.results.passed_tests,
+                "failed": execution.results.failed_tests,
+                "skipped": execution.results.skipped_tests,
+                "errors": execution.results.error_tests,
+                "success_rate": (execution.results.passed_tests / max(execution.results.total_tests, 1)) * 100 if execution.results.total_tests > 0 else 0.0
+            },
+            "categories": {
                 "unit_tests": {
-                    "passed": execution.results.unit_tests_passed,
                     "total": execution.results.unit_tests_total,
-                    "success_rate": execution.results.unit_tests_passed / max(execution.results.unit_tests_total, 1) * 100
+                    "passed": execution.results.unit_tests_passed,
+                    "success_rate": (execution.results.unit_tests_passed / max(execution.results.unit_tests_total, 1)) * 100 if execution.results.unit_tests_total > 0 else 0.0
                 },
                 "integration_tests": {
-                    "passed": execution.results.integration_tests_passed,
                     "total": execution.results.integration_tests_total,
-                    "success_rate": execution.results.integration_tests_passed / max(execution.results.integration_tests_total, 1) * 100
+                    "passed": execution.results.integration_tests_passed,
+                    "success_rate": (execution.results.integration_tests_passed / max(execution.results.integration_tests_total, 1)) * 100 if execution.results.integration_tests_total > 0 else 0.0
                 },
-                "coverage": execution.results.coverage_percentage
+                "e2e_tests": {
+                    "total": execution.results.e2e_tests_total,
+                    "passed": execution.results.e2e_tests_passed,
+                    "success_rate": (execution.results.e2e_tests_passed / max(execution.results.e2e_tests_total, 1)) * 100 if execution.results.e2e_tests_total > 0 else 0.0
+                }
+            },
+            "coverage": {
+                "percentage": execution.results.coverage_percentage,
+                "lines_covered": execution.results.coverage_lines_covered,
+                "lines_total": execution.results.coverage_lines_total
+            },
+            "performance": {
+                "execution_time": execution.execution_time,
+                "memory_usage": execution.results.memory_usage,
+                "slowest_tests": execution.results.slowest_tests
             },
             "output_preview": execution.output[:500] + "..." if len(execution.output) > 500 else execution.output
         }
+        
+        if not execution.results.success:
+            report["errors"] = {
+                "summary": execution.results.error_summary,
+                "failure_details": execution.results.failure_details[:3]  # Limit output
+            }
+        
+        return report
+    
+    def generate_comprehensive_report(self, execution: TestExecution) -> Dict:
+        """Generate comprehensive test report with all details (alias for backward compatibility)"""
+        return self.generate_test_report(execution)
 
 
 class CoverageReportParser:
