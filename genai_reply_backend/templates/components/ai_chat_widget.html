@@ -6,7 +6,7 @@
       AI 助手對話
     </h6>
     <div class="chat-status">
-      <span class="badge bg-success">
+      <span id="chat-status-badge" class="badge bg-success ready">
         <i class="fas fa-circle me-1"></i>就緒
       </span>
     </div>
@@ -14,6 +14,11 @@
   
   <!-- 對話歷史區域 -->
   <div class="card-body p-0">
+    <!-- 回應進度條 -->
+    <div id="response-progress" class="response-progress" style="display: none;">
+      <div id="response-progress-bar" class="response-progress-bar"></div>
+    </div>
+    
     <div id="chat-messages" class="chat-messages-container">
       <!-- 歡迎訊息 -->
       <div class="message-wrapper assistant-message">
@@ -54,7 +59,8 @@
                 class="btn btn-primary" 
                 id="send-button">
           <span id="send-spinner" class="spinner-border spinner-border-sm me-2 d-none"></span>
-          <i class="fas fa-paper-plane"></i>
+          <i id="send-icon" class="fas fa-paper-plane"></i>
+          <span id="send-text" class="d-none">發送中</span>
         </button>
       </div>
       
@@ -79,14 +85,152 @@
 </div>
 
 <script>
-// AI 對話組件 JavaScript
+// AI 對話組件 JavaScript - 增強版
 document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
     const chatMessages = document.getElementById('chat-messages');
+    const sendButton = document.getElementById('send-button');
+    const sendSpinner = document.getElementById('send-spinner');
+    const sendIcon = document.getElementById('send-icon');
+    const sendText = document.getElementById('send-text');
+    const statusBadge = document.getElementById('chat-status-badge');
+    const progressContainer = document.getElementById('response-progress');
+    const progressBar = document.getElementById('response-progress-bar');
     
-    // 表單提交後清空輸入框
+    let requestStartTime = null;
+    let progressInterval = null;
+    let thinkingIndicator = null;
+    
+    // 預估回應時間（基於訊息長度）
+    function estimateResponseTime(messageLength) {
+        // 基本時間 2-5 秒，長訊息增加時間
+        const baseTime = 2000;
+        const lengthFactor = Math.min(messageLength * 50, 3000);
+        return baseTime + lengthFactor;
+    }
+    
+    // 顯示 AI 思考指示器
+    function showThinkingIndicator() {
+        thinkingIndicator = document.createElement('div');
+        thinkingIndicator.className = 'ai-thinking-indicator';
+        thinkingIndicator.innerHTML = `
+            <div class="message-avatar">
+                <i class="fas fa-robot text-primary"></i>
+            </div>
+            <div class="ai-thinking-bubble">
+                <span class="ai-thinking-text">AI 正在思考中</span>
+                <div class="typing-indicator">
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+                <span class="estimated-time" id="estimated-time"></span>
+            </div>
+        `;
+        chatMessages.appendChild(thinkingIndicator);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    // 隱藏 AI 思考指示器
+    function hideThinkingIndicator() {
+        if (thinkingIndicator) {
+            thinkingIndicator.remove();
+            thinkingIndicator = null;
+        }
+    }
+    
+    // 更新進度條
+    function updateProgress(estimatedTime) {
+        let progress = 0;
+        const increment = 100 / (estimatedTime / 100);
+        
+        progressInterval = setInterval(() => {
+            progress += increment * (0.3 + Math.random() * 0.4); // 隨機化進度增長
+            progress = Math.min(progress, 95); // 最多到 95%，等待實際回應
+            
+            progressBar.style.width = progress + '%';
+            
+            // 更新預估時間
+            const elapsed = Date.now() - requestStartTime;
+            const remaining = Math.max(0, estimatedTime - elapsed);
+            const estimatedTimeElement = document.getElementById('estimated-time');
+            if (estimatedTimeElement) {
+                estimatedTimeElement.textContent = `預估 ${Math.ceil(remaining / 1000)} 秒`;
+            }
+        }, 100);
+    }
+    
+    // 完成進度條
+    function completeProgress() {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+        
+        progressBar.style.width = '100%';
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+        }, 500);
+    }
+    
+    // 設置發送狀態
+    function setSendingState(isSending) {
+        if (isSending) {
+            sendButton.disabled = true;
+            sendButton.classList.add('sending');
+            chatInput.disabled = true;
+            
+            sendSpinner.classList.remove('d-none');
+            sendIcon.classList.add('d-none');
+            sendText.classList.remove('d-none');
+            
+            statusBadge.className = 'badge bg-warning processing';
+            statusBadge.innerHTML = '<i class="fas fa-circle me-1"></i>處理中';
+        } else {
+            sendButton.disabled = false;
+            sendButton.classList.remove('sending');
+            chatInput.disabled = false;
+            
+            sendSpinner.classList.add('d-none');
+            sendIcon.classList.remove('d-none');
+            sendText.classList.add('d-none');
+            
+            statusBadge.className = 'badge bg-success ready';
+            statusBadge.innerHTML = '<i class="fas fa-circle me-1"></i>就緒';
+        }
+    }
+    
+    // 請求開始前
+    chatForm.addEventListener('htmx:beforeRequest', function(event) {
+        const messageLength = chatInput.value.trim().length;
+        const estimatedTime = estimateResponseTime(messageLength);
+        
+        requestStartTime = Date.now();
+        setSendingState(true);
+        
+        // 顯示進度條
+        progressContainer.style.display = 'block';
+        updateProgress(estimatedTime);
+        
+        // 延遲顯示思考指示器，避免短時間請求的閃爍
+        setTimeout(() => {
+            if (requestStartTime) { // 確保請求還在進行中
+                showThinkingIndicator();
+            }
+        }, 1000);
+    });
+    
+    // 請求完成後
     chatForm.addEventListener('htmx:afterRequest', function(event) {
+        requestStartTime = null;
+        setSendingState(false);
+        completeProgress();
+        hideThinkingIndicator();
+        
         if (event.detail.successful) {
             chatInput.value = '';
             chatInput.focus();
@@ -98,11 +242,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // 請求錯誤處理
+    chatForm.addEventListener('htmx:responseError', function(event) {
+        requestStartTime = null;
+        setSendingState(false);
+        completeProgress();
+        hideThinkingIndicator();
+        
+        statusBadge.className = 'badge bg-danger';
+        statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>錯誤';
+        
+        // 3 秒後恢復就緒狀態
+        setTimeout(() => {
+            statusBadge.className = 'badge bg-success ready';
+            statusBadge.innerHTML = '<i class="fas fa-circle me-1"></i>就緒';
+        }, 3000);
+    });
+    
     // Enter 鍵提交 (Shift+Enter 換行)
     chatInput.addEventListener('keypress', function(event) {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
-            chatForm.requestSubmit();
+            if (!sendButton.disabled) {
+                chatForm.requestSubmit();
+            }
         }
     });
     

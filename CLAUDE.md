@@ -2,8 +2,8 @@
 
 > **Purpose**: Universal development rules and guidelines for Claude Code CLI  
 > **Scope**: Django & FastAPI projects  
-> **Version**: v2.1  
-> **Last Updated**: 2025-07-25
+> **Version**: v2.3  
+> **Last Updated**: 2025-07-28
 
 ---
 
@@ -25,12 +25,27 @@ BEFORE MODIFYING/CREATING ANY FILE:
 ✅ ALL CHECKS PASS → Continue with modification
 ```
 
-#### 2. **🐳 Docker Environment Compliance**
+#### 2. **🐳 Docker-Host Environment Boundary Compliance**
 ```
-BEFORE EXECUTING ANY COMMAND:
-□ Am I using `docker compose exec [service]` prefix?
-□ Am I avoiding direct host commands (python, pytest, etc.)?
-□ Is the correct service container specified?
+BEFORE EXECUTING ANY COMMAND - Validate execution context:
+
+DOCKER CONTAINER COMMANDS (use `docker compose exec [service]`):
+□ Application runtime: python manage.py, pytest, uvicorn
+□ Database operations: migrate, shell, dbshell
+□ Static files: collectstatic, compress
+□ Package management: pip install (within requirements workflow)
+
+HOST ENVIRONMENT COMMANDS (execute directly on host):
+□ Version control: git add, commit, push, pull, status, log
+□ Git configuration: git config --global user.name/email
+□ File system operations: file creation/editing with IDE
+□ SSH operations: ssh-keygen, ssh connections
+□ Development tool configuration: IDE settings, shell configuration
+
+❌ VIOLATION EXAMPLES:
+- docker compose exec django git commit (Git in container)
+- python manage.py migrate (Direct host execution of app commands)
+- docker compose exec django git config user.email (Git config in container)
 
 ❌ VIOLATION DETECTED → Stop and ask human before proceeding
 ✅ ALL CHECKS PASS → Continue with command execution
@@ -327,6 +342,200 @@ quality_indicators:
   architecture_violations: 0
   rule_compliance_rate: ">95%"
 ```
+
+---
+
+## 🎯 PROJECT DEVELOPMENT GUIDANCE PRINCIPLES
+
+> **Purpose**: Framework-agnostic development guidance derived from real project experience  
+> **Scope**: Advisory principles for Django & FastAPI projects  
+> **Usage**: Reference for decision-making, not mandatory rules
+
+### **🔍 1. User Need Reality Analysis**
+
+**Principle**: Always question the real need behind technical requests
+
+```markdown
+Decision Pattern:
+- User request: "I want [Technology X]"
+- Real analysis: "I need [Business Outcome Y]"
+- Solution evaluation: Can simpler approaches achieve Y?
+
+Example Applications:
+- Streaming request → Status visibility need → Enhanced UI feedback
+- Real-time features → Immediate response need → Optimistic UI updates
+- Complex animations → Professional feel need → Subtle, purposeful transitions
+```
+
+**Framework Application:**
+- **Django**: Leverage HTMX events for immediate UI feedback
+- **FastAPI**: Use WebSocket judiciously, prefer HTTP + rich frontend states
+
+### **🏗️ 2. Progressive Enhancement Strategy**
+
+**Principle**: Maximize user experience improvement with minimal architectural risk
+
+```markdown
+Enhancement Priority Matrix:
+1. Frontend optimization (High impact, low risk)
+2. API response enrichment (Medium impact, low risk)  
+3. Backend optimization (Medium impact, medium risk)
+4. Architecture changes (Variable impact, high risk)
+
+Decision Framework:
+- Can frontend changes solve 80% of the user experience problem?
+- Does the current API provide sufficient data for enhancement?
+- Will existing architecture support the enhancement long-term?
+```
+
+**Framework Application:**
+- **Django**: Enhance templates and static assets before changing views
+- **FastAPI**: Enrich response models before adding new endpoints
+
+### **⚡ 3. Frontend-Backend Separation for UX Enhancement**
+
+**Principle**: Solve UX problems at the appropriate layer
+
+```markdown
+Problem Classification:
+- UI Responsiveness → Frontend solution (state management, optimistic updates)
+- Data Processing Speed → Backend solution (caching, optimization)
+- Perceived Performance → Frontend solution (progress indicators, transitions)
+- Actual Performance → Backend solution (query optimization, architecture)
+
+Implementation Strategy:
+- Keep backend APIs stable and predictable
+- Build rich interactions in frontend layer
+- Use existing event systems rather than adding new communication channels
+```
+
+**Framework Application:**
+- **Django**: Utilize HTMX events, Django template context
+- **FastAPI**: Leverage Pydantic models, JavaScript frontend frameworks
+
+### **👁️ 4. User State Visibility Design Pattern**
+
+**Principle**: Make system state always visible to users during any waiting period
+
+```markdown
+Required State Communication:
+1. Acknowledgment: "Your request is received"
+2. Progress: "Here's what's happening"  
+3. Estimation: "Here's how long it might take"
+4. Completion: "Here's your result"
+5. Recovery: "Here's what to do if something goes wrong"
+
+Implementation Template:
+- Pre-request: Immediate UI state change
+- During-request: Progress indication + time estimation
+- Post-request: Result display + state restoration
+- Error-handling: Clear error communication + recovery options
+```
+
+**Framework Application:**
+- **Django**: Use HTMX events + Django messages framework
+- **FastAPI**: Use HTTP status codes + rich error responses
+
+### **💰 5. Technology Choice Cost-Benefit Framework**
+
+**Principle**: Evaluate new technology adoption against clear criteria
+
+```markdown
+Evaluation Matrix:
+                    | Implementation | Maintenance | User Benefit | Risk Level |
+--------------------|----------------|-------------|--------------|------------|
+Current + Enhancement|     Low        |    Low      |    High      |    Low     |
+New Architecture    |     High       |    High     |   Variable   |    High    |
+
+Decision Criteria:
+- User benefit must be 3x the implementation cost for architectural changes
+- Maintenance burden must be justified by long-term value
+- Risk level must align with project stage and team capacity
+```
+
+**Framework Application:**
+- **Django**: Consider django-htmx before WebSockets, enhance ModelForms before custom APIs
+- **FastAPI**: Consider rich frontend states before WebSockets, enhance Pydantic before custom serialization
+
+### **🔄 6. Standardized State Management Pattern**
+
+**Principle**: Consistent state management improves user experience and code maintainability
+
+```markdown
+Component State Standards:
+- Visual states: ready, processing, completed, error
+- Functional states: enabled, disabled, loading
+- Informational states: progress, estimation, feedback
+
+Implementation Requirements:
+- State transitions must be visually clear
+- Error states must provide recovery options  
+- Loading states must prevent duplicate actions
+- Completion states must guide next actions
+```
+
+**Framework Application:**
+- **Django**: Use CSS classes + HTMX attributes for state management
+- **FastAPI**: Use HTTP status codes + frontend state management libraries
+
+### **📊 7. Performance Impact Pre-Assessment**
+
+**Principle**: Define and measure performance impact before implementing enhancements
+
+```markdown
+Assessment Categories:
+- Resource consumption (bundle size, memory usage)
+- Runtime performance (animation smoothness, response times)
+- User experience metrics (perceived speed, interaction delays)
+- Maintainability impact (code complexity, debugging difficulty)
+
+Measurement Standards:
+- Frontend additions: Document size increases and performance impact
+- Backend changes: Measure response time and resource usage changes
+- User experience: Define measurable improvement criteria
+```
+
+**Framework Application:**
+- **Django**: Use Django Debug Toolbar, monitor static file sizes
+- **FastAPI**: Use built-in profiling, monitor response times
+
+### **🚀 IMPLEMENTATION GUIDELINES**
+
+#### **When to Apply These Principles:**
+- ✅ During feature planning and technical design
+- ✅ When evaluating user experience improvements
+- ✅ Before adopting new technologies or patterns
+- ✅ During code review and architecture discussions
+
+#### **When NOT to Apply:**
+- ❌ As rigid rules that override project-specific needs
+- ❌ In emergency bug fixes or critical security updates
+- ❌ When client/stakeholder requirements explicitly override UX considerations
+- ❌ In early prototype stages where rapid iteration is prioritized
+
+#### **Framework-Specific Adaptations:**
+
+**Django Projects:**
+- Leverage Django's built-in admin, forms, and template system
+- Use HTMX for enhanced interactivity before considering SPA frameworks
+- Apply these principles within Django's "batteries included" philosophy
+
+**FastAPI Projects:**  
+- Leverage Pydantic for rich data validation and serialization
+- Use FastAPI's automatic API documentation as part of user experience
+- Apply these principles within FastAPI's performance-first approach
+
+### **📈 SUCCESS METRICS**
+
+Track the effectiveness of these principles through:
+- User experience improvements (measured through user feedback, usage analytics)
+- Development velocity (feature delivery speed, bug reduction)
+- Code maintainability (review time, onboarding speed)
+- Technical debt management (refactoring frequency, architecture stability)
+
+---
+
+**Remember**: These are guidance principles derived from real project experience. Adapt them to your specific project context, team capabilities, and user needs.
 
 ---
 
